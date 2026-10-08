@@ -14,7 +14,7 @@ import numpy as np  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from openarm_sim import DEFAULT_CONFIG, DEFAULT_SCENE, ROOT  # noqa: E402
-from openarm_sim.scene import (BOX_GEOM, CAM_COLLISION_GEOM, TABLE_GEOM, body_front_profile,  # noqa: E402
+from openarm_sim.scene import (BOX_GEOM, CAM_COLLISION_GEOM, PAD_GEOM, TABLE_GEOM, arm_geoms, body_front_profile,  # noqa: E402
                                box_top, camera_pose, clearances, load_config, load_scene,
                                measure_column_front, shoulder_reach)
 
@@ -61,6 +61,12 @@ def main() -> int:
 
     print("\n== Vai và tầm với (q = 0) ==")
     reach = shoulder_reach(m, d)
+    targets = {}
+    if mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, "target_pad_center") >= 0:
+        targets["tâm ô trắng"] = "target_pad_center"
+    for name in (cfg.get("objects") or {}):
+        targets[f"tâm {name}"] = f"{name}_center"
+    best = {}   # label -> (khoảng thiếu nhỏ nhất so với tầm với của tay gần hơn, tầm với)
     grid_x = np.linspace(bt["x_near"], bt["x_far"], 9)
     grid_y = np.linspace(*bt["y"], 13)
     for s, r in reach.items():
@@ -75,23 +81,53 @@ def main() -> int:
               f"phần mặt hộp trong bán kính với: {frac * 100:.0f}% (điều kiện cần, chưa tính IK/hướng kẹp)")
         if dc > r["reach"]:
             problems.append(f"Tâm mặt hộp ngoài tầm với tay {s} ({dc:.3f} > {r['reach']:.3f})")
+        for label, site in targets.items():
+            dt_ = np.linalg.norm(d.site_xpos[m.site(site).id] - sh)
+            ok = "trong" if dt_ <= r["reach"] else "NGOÀI"
+            print(f"  vai→{label}: {dt_:.3f} ({ok} tầm với)")
+            best[label] = min(best.get(label, (np.inf,))[0], dt_ - r["reach"]), r["reach"]
+
+    for label, (short, _) in best.items():
+        if short > 0:
+            problems.append(f"{label} ngoài tầm với của cả hai tay (thiếu {short:.3f} m)")
 
     print("\n== Va chạm ở q = 0 ==")
-    ids = {mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, n) for n in (BOX_GEOM, TABLE_GEOM, CAM_COLLISION_GEOM)}
-    hits = []
+    arms = set(arm_geoms(m))
+    env = [BOX_GEOM, TABLE_GEOM, CAM_COLLISION_GEOM, PAD_GEOM] + [f"{n}_geom" for n in (cfg.get("objects") or {})]
     for i in range(d.ncon):
         c = d.contact[i]
         n1, n2 = m.geom(c.geom1).name, m.geom(c.geom2).name
-        hits.append((n1, n2, c.dist))
-        print(f"  tiếp xúc: {n1} – {n2}, dist {c.dist:+.4f}")
-    if not hits:
+        both_arm = c.geom1 in arms and c.geom2 in arms
+        kind = "nội bộ tay (model gốc)" if both_arm else ("TAY–MÔI TRƯỜNG" if (c.geom1 in arms or c.geom2 in arms)
+                                                         else "vật–môi trường")
+        print(f"  tiếp xúc [{kind}]: {n1} – {n2}, dist {c.dist:+.4f}")
+        if kind == "TAY–MÔI TRƯỜNG":
+            problems.append(f"Tay chạm {n1}–{n2} ở q=0")
+    if d.ncon == 0:
         print("  không có tiếp xúc nào")
-    if any(m.geom(n1).id in ids or m.geom(n2).id in ids for n1, n2, _ in hits):
-        problems.append("Có tiếp xúc với hộp/bàn/camera ở q=0")
-    for t, (dist, g) in clearances(m, d, [BOX_GEOM, TABLE_GEOM, CAM_COLLISION_GEOM]).items():
+    for t, (dist, g) in clearances(m, d, env).items():
         print(f"  khe hở nhỏ nhất tay → {t}: {dist:.4f} m ({g})")
         if dist < 0.005:
             problems.append(f"Tay quá sát/xuyên {t} ở q=0: {dist:.4f} m")
+
+    objs = list(cfg.get("objects") or {})
+    if objs:
+        print("\n== Vật nằm yên trên hộp? (mô phỏng 1 s, tay giữ q = 0) ==")
+        d2 = mujoco.MjData(m)
+        mujoco.mj_resetDataKeyframe(m, d2, m.key("zero").id)
+        arm_dofs = [m.jnt_dofadr[j] for j in range(m.njnt) if m.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE]
+        arm_qadr = [m.jnt_qposadr[j] for j in range(m.njnt) if m.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE]
+        q0 = d2.qpos[arm_qadr].copy()
+        for _ in range(int(1.0 / m.opt.timestep)):
+            d2.qpos[arm_qadr] = q0      # giữ tay cố định, chỉ để vật tự lắng
+            d2.qvel[arm_dofs] = 0
+            mujoco.mj_step(m, d2)
+        for name in objs:
+            b = m.body(name).id
+            p0, p1 = d.xpos[b], d2.xpos[b]
+            print(f"  {name}: đầu {fmt(p0)} → sau 1 s {fmt(p1)}, dịch {np.linalg.norm(p1 - p0) * 1000:.2f} mm")
+            if np.linalg.norm(p1 - p0) > 0.002:
+                problems.append(f"{name} không nằm yên (dịch {np.linalg.norm(p1 - p0) * 1000:.1f} mm)")
 
     print("\n== Render ==")
     for key in ("color", "depth"):
@@ -126,7 +162,7 @@ def main() -> int:
         for p in problems:
             print("  CẢNH BÁO:", p)
         return 1
-    print("  OK: không va chạm ở q=0, mặt hộp trong tầm với.")
+    print("  OK: không va chạm ở q=0, mặt hộp/vật/ô đích trong tầm với.")
     return 0
 
 

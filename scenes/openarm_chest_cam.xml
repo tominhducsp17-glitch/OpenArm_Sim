@@ -55,10 +55,10 @@
     <mesh name="body_collision" file="collision/body/body_link0.stl" scale="0.001 0.001 0.001"/>
     <mesh name="link0_collision" file="collision/arm/link0.stl" scale="0.001 0.001 0.001"/>
     <mesh name="link0_collision_left" content_type="model/stl" file="collision/arm/link0.stl" scale="0.001 -0.001 0.001"/>
-    <mesh name="link1_collision" content_type="model/stl" file="collision/arm/link1.stl" scale="0.001 0.001 0.001"/>
-    <mesh name="link1_collision_left" file="collision/arm/link1.stl" scale="0.001 -0.001 0.001"/>
-    <mesh name="link2_collision" file="collision/arm/link2.stl" scale="0.001 0.001 0.001"/>
-    <mesh name="link2_collision_left" content_type="model/stl" file="collision/arm/link2.stl" scale="0.001 -0.001 0.001"/>
+    <mesh name="link1_collision" file="collision/arm/link1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="link1_collision_left" content_type="model/stl" file="collision/arm/link1.stl" scale="0.001 -0.001 0.001"/>
+    <mesh name="link2_collision" content_type="model/stl" file="collision/arm/link2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="link2_collision_left" file="collision/arm/link2.stl" scale="0.001 -0.001 0.001"/>
     <mesh name="link3_collision" content_type="model/stl" file="collision/arm/link3.stl" scale="0.001 0.001 0.001"/>
     <mesh name="link3_collision_left" file="collision/arm/link3.stl" scale="0.001 -0.001 0.001"/>
     <mesh name="link4_collision" file="collision/arm/link4.stl" scale="0.001 0.001 0.001"/>
@@ -96,12 +96,12 @@
     <mesh name="link5_1.obj" file="visual/arm/link5_1.obj" scale="0.001 0.001 0.001"/>
     <mesh name="link5_2.obj" file="visual/arm/link5_2.obj" scale="0.001 0.001 0.001"/>
     <mesh name="link6_0.obj" file="visual/arm/link6_0.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="link6_1.obj" file="visual/arm/link6_1.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link6_1.obj" content_type="model/obj" file="visual/arm/link6_1.obj" scale="0.001 0.001 0.001"/>
     <mesh name="link6_0_left.obj" content_type="model/obj" file="visual/arm/link6_0.obj" scale="0.001 -0.001 0.001"/>
-    <mesh name="link6_1_left.obj" content_type="model/obj" file="visual/arm/link6_1.obj" scale="0.001 -0.001 0.001"/>
-    <mesh name="link7_0.obj" content_type="model/obj" file="visual/arm/link7_0.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link6_1_left.obj" file="visual/arm/link6_1.obj" scale="0.001 -0.001 0.001"/>
+    <mesh name="link7_0.obj" file="visual/arm/link7_0.obj" scale="0.001 0.001 0.001"/>
     <mesh name="link7_1.obj" file="visual/arm/link7_1.obj" scale="0.001 0.001 0.001"/>
-    <mesh name="link7_0_left.obj" file="visual/arm/link7_0.obj" scale="0.001 -0.001 0.001"/>
+    <mesh name="link7_0_left.obj" content_type="model/obj" file="visual/arm/link7_0.obj" scale="0.001 -0.001 0.001"/>
     <mesh name="link7_1_left.obj" content_type="model/obj" file="visual/arm/link7_1.obj" scale="0.001 -0.001 0.001"/>
     <mesh name="hand_0.obj" file="visual/gripper/hand_0.obj" scale="0.001 0.001 0.001"/>
     <mesh name="hand_1.obj" file="visual/gripper/hand_1.obj" scale="0.001 0.001 0.001"/>
@@ -305,8 +305,15 @@
       </body>
     </body>
     <body name="work_box_body" pos="0.37 0 0.08">
-      <geom name="work_box" size="0.2 0.3 0.08" type="box" friction="1 0.01 0.01" rgba="0.78 0.76 0.7 1"/>
+      <geom name="work_box" size="0.2 0.3 0.08" type="box" friction="1 0.01 0.01" rgba="0.04 0.04 0.04 1"/>
+      <geom name="target_pad" size="0.06 0.06 0.00025" pos="0 0 0.08025" type="box" friction="1 0.01 0.01" rgba="0.95 0.95 0.95 1"/>
       <site name="work_box_top_center" pos="0 0 0.08" group="4" rgba="1 0 0 1"/>
+      <site name="target_pad_center" size="0.004" pos="0 0 0.0805" group="4" rgba="1 0 0 1"/>
+    </body>
+    <body name="mentos_tin" pos="0.27 -0.15 0.169">
+      <joint name="mentos_tin_freejoint" type="free"/>
+      <geom name="mentos_tin_geom" size="0.03 0.02 0.009" type="box" condim="4" friction="0.6" rgba="0.1 0.55 0.2 1" mass="0.045"/>
+      <site name="mentos_tin_center" size="0.003" group="4" rgba="1 1 0 1"/>
     </body>
   </worldbody>
 

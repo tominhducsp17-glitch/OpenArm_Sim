@@ -65,6 +65,13 @@ chắc chắn bằng thước trước. Nếu ảnh thật bị crop (ví dụ 6
 | `camera.pitch_deg` / `yaw_deg` / `roll_deg` | 45 / 0 / 0 | hướng camera; pitch dương = chúc xuống |
 | `camera.color` / `camera.depth` | 42°, 1280×720 / 58°, 848×480 | fovy dọc và độ phân giải |
 | `robot.column_probe_z` | [0.30, 0.60] | dải z để đo mặt trước cột từ mesh |
+| `box.rgba` | đen | màu hộp kê |
+| `target_pad.size`, `offset_xy` | 0.12×0.12, [0, 0] | ô trắng (đích đặt vật), lệch so với tâm mặt hộp |
+| `objects.mentos_tin.size` / `mass` | 0.060×0.040×0.018 / 0.045 | hộp kẹo Mentos sắt (**ước lượng**, cần đo lại) |
+| `objects.mentos_tin.pos_xy`, `yaw_deg` | [0.27, −0.15], 0 | vị trí ban đầu trên mặt hộp |
+
+Task thử: gắp `mentos_tin` (thân tự do, có freejoint) bỏ vào ô `target_pad`. Site `mentos_tin_center` và
+`target_pad_center` (group 4) dùng để tính khoảng cách/điều kiện thành công.
 
 ## Mô hình hoá
 

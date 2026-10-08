@@ -17,6 +17,7 @@ CAM_BODY = "chest_camera_link"
 BOX_GEOM = "work_box"
 TABLE_GEOM = "table_top"
 CAM_COLLISION_GEOM = "chest_camera_collision"
+PAD_GEOM = "target_pad"
 SIDES = ("left", "right")
 
 
@@ -172,6 +173,29 @@ def build_spec(cfg: dict, out_path: Path) -> tuple[mujoco.MjSpec, Derived]:
     box_body.add_site(name="work_box_top_center", pos=[0, 0, der.box_half[2]], size=[0.005, 0, 0],
                       rgba=[1, 0, 0, 1], group=4)
 
+    # ---- ô trắng (đích đặt vật) trên mặt hộp
+    pad = cfg.get("target_pad")
+    if pad:
+        (px, py), th = pad["offset_xy"], pad["thickness"]
+        box_body.add_geom(name=PAD_GEOM, type=mujoco.mjtGeom.mjGEOM_BOX,
+                          pos=[px, py, der.box_half[2] + th / 2],
+                          size=[pad["size"][0] / 2, pad["size"][1] / 2, th / 2],
+                          rgba=pad["rgba"], contype=1, conaffinity=1, condim=3, friction=[1, 0.01, 0.01])
+        box_body.add_site(name="target_pad_center", pos=[px, py, der.box_half[2] + th], size=[0.004, 0, 0],
+                          rgba=[1, 0, 0, 1], group=4)
+
+    # ---- vật để gắp (thân tự do), đặt nằm trên mặt hộp
+    for name, o in (cfg.get("objects") or {}).items():
+        sx, sy, sz = o["size"]
+        top = 2 * der.box_half[2]
+        ob = wb.add_body(name=name, pos=[*o["pos_xy"], top + sz / 2],
+                         quat=euler_zyx_quat(o.get("yaw_deg", 0.0), 0, 0).tolist())
+        ob.add_freejoint(name=f"{name}_freejoint")
+        ob.add_geom(name=f"{name}_geom", type=mujoco.mjtGeom.mjGEOM_BOX, size=[sx / 2, sy / 2, sz / 2],
+                    mass=o["mass"], rgba=o["rgba"], contype=1, conaffinity=1, condim=4,
+                    friction=o.get("friction", [0.6, 0.005, 0.0001]))
+        ob.add_site(name=f"{name}_center", size=[0.003, 0, 0], rgba=[1, 1, 0, 1], group=4)
+
     # ---- camera ngực D435i, gắn vào chân đế
     base = spec.body(r["base_body"])
     rs = c["realsense"]
@@ -212,8 +236,8 @@ def build_spec(cfg: dict, out_path: Path) -> tuple[mujoco.MjSpec, Derived]:
                           size=[(x_b - x_a) / 2, 0.02, 0.004],
                           material="bracket", contype=0, conaffinity=0, group=2)
 
-    nq = spec.compile().nq
-    spec.add_key(name="zero", qpos=[0.0] * nq)
+    # Keyframe "zero": khớp tay = 0, vật ở vị trí ban đầu (qpos0 chứa sẵn pose của freejoint).
+    spec.add_key(name="zero", qpos=spec.compile().qpos0.tolist())
     der.extra["d435_rel"] = d435_rel
     der.extra["meshdir_rel"] = der_meshdir_rel
     return spec, der

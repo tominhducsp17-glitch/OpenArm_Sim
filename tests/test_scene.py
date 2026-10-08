@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import mujoco  # noqa: E402
 
 from openarm_sim import DEFAULT_CONFIG, DEFAULT_SCENE  # noqa: E402
-from openarm_sim.scene import (BOX_GEOM, _geom_world_mesh, CAM_COLLISION_GEOM, TABLE_GEOM, body_front_profile,  # noqa: E402
+from openarm_sim.scene import (BOX_GEOM, PAD_GEOM, _geom_world_mesh, arm_geoms, body_front_profile,  # noqa: E402
                                box_top, camera_pose, load_config, load_scene, write_scene)
 
 CFG = load_config(DEFAULT_CONFIG)
@@ -95,9 +95,50 @@ def test_column_box_gap(scene, column_front):
     assert box_top(*scene)["x_near"] - column_front == pytest.approx(0.14, abs=0.005)
 
 
-def test_no_contact_with_env_at_zero(scene):
+def test_no_arm_contact_with_env_at_zero(scene):
     m, d = scene
-    env = {m.geom(n).id for n in (BOX_GEOM, TABLE_GEOM, CAM_COLLISION_GEOM)}
+    arms = set(arm_geoms(m))
     bad = [(m.geom(c.geom1).name, m.geom(c.geom2).name) for c in d.contact[:d.ncon]
-           if c.geom1 in env or c.geom2 in env]
+           if (c.geom1 in arms) != (c.geom2 in arms)]
     assert not bad, bad
+
+
+def test_box_is_black(scene):
+    m, _ = scene
+    assert max(m.geom_rgba[m.geom(BOX_GEOM).id][:3]) < 0.1
+
+
+def test_target_pad(scene):
+    m, d = scene
+    g = m.geom(PAD_GEOM).id
+    assert 2 * m.geom_size[g][:2] == pytest.approx([0.12, 0.12], abs=1e-6)
+    assert min(m.geom_rgba[g][:3]) > 0.9                                  # trắng
+    bt = box_top(m, d)
+    assert d.geom_xpos[g][:2] == pytest.approx(bt["center"][:2], abs=1e-6)  # giữa mặt hộp
+    assert d.geom_xpos[g][2] - m.geom_size[g][2] == pytest.approx(bt["z"], abs=1e-6)  # nằm trên mặt hộp
+
+
+def test_mentos_tin(scene):
+    m, d = scene
+    o = CFG["objects"]["mentos_tin"]
+    g = m.geom("mentos_tin_geom").id
+    assert 2 * m.geom_size[g] == pytest.approx(o["size"], abs=1e-6)
+    assert m.body_mass[m.body("mentos_tin").id] == pytest.approx(o["mass"], abs=1e-6)
+    assert m.jnt_type[m.body_jntadr[m.body("mentos_tin").id]] == mujoco.mjtJoint.mjJNT_FREE
+    # đáy hộp kẹo chạm mặt hộp kê, không chồng lên ô trắng lúc đầu
+    assert d.geom_xpos[g][2] - o["size"][2] / 2 == pytest.approx(box_top(m, d)["z"], abs=1e-4)
+    pad = m.geom(PAD_GEOM).id
+    gap = np.abs(d.geom_xpos[g][:2] - d.geom_xpos[pad][:2]) - m.geom_size[pad][:2] - np.array(o["size"][:2]) / 2
+    assert gap.max() > 0
+
+
+def test_mentos_tin_rests(scene):
+    m, _ = scene
+    d = mujoco.MjData(m)
+    mujoco.mj_resetDataKeyframe(m, d, m.key("zero").id)
+    b = m.body("mentos_tin").id
+    mujoco.mj_forward(m, d)
+    p0 = d.xpos[b].copy()
+    for _ in range(int(0.5 / m.opt.timestep)):
+        mujoco.mj_step(m, d)
+    assert np.linalg.norm(d.xpos[b] - p0) < 0.002
