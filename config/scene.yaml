@@ -1,0 +1,55 @@
+# Mọi số đo của cảnh (đơn vị: m, độ). Bản đầu — chỉnh lại theo đo thật rồi chạy lại build_scene.py.
+# Quy ước: x trước, y trái, z lên. z = 0 là mặt bàn đặt chân đế robot; gốc toạ độ = gốc chân đế.
+
+robot:
+  model: third_party/openarm_mujoco/v1/openarm_bimanual.xml
+  base_body: openarm_body_link0
+  # Dải z để đo "mặt trước cột" từ mesh chân đế (cắt lát ngang, lấy x lớn nhất mỗi lát).
+  # Lưu ý: từ z ≈ 0.613 trở lên là khối vai (body_link0_5) nhô ra tới x ≈ 0.065,
+  # nên dải mặc định dừng ở 0.60 để chỉ lấy thân cột. check_scene.py in profile 0.30–0.70 để đối chiếu.
+  column_probe_z: [0.30, 0.60]
+  column_probe_steps: 13
+
+table:                      # mặt bàn đặt robot, mặt trên ở z = 0
+  x_range: [-0.40, 1.00]
+  y_range: [-0.80, 0.80]
+  thickness: 0.04
+  floor_z: -0.75            # sàn nhà (chỉ để hình ảnh)
+  rgba: [0.55, 0.45, 0.35, 1]
+
+box:                        # hộp kê trước robot = "mặt bàn" gắp
+  top_height: 0.16          # mặt trên so với mặt bàn (số quan trọng nhất)
+  gap_from_column: 0.14     # mép gần robot cách mặt trước cột theo x
+  size_x: 0.40              # chiều sâu theo x
+  size_y: 0.60              # chiều rộng theo y
+  center_y: 0.0
+  rgba: [0.78, 0.76, 0.70, 1]
+
+camera:                     # Intel RealSense D435i ở ngực (gắn vào base_body)
+  lens_center_height: 0.58  # z của quang tâm (mặt phẳng zero-depth) so với mặt bàn
+  offset_x_from_column: 0.03  # khoảng x từ mặt trước cột tới quang tâm
+  housing_center_y: 0.0     # y của tâm vỏ camera (vỏ căn giữa theo y)
+  pitch_deg: 45.0           # chúc xuống (dương = nhìn xuống)
+  yaw_deg: 0.0              # dương = quay sang trái
+  roll_deg: 0.0
+  color:
+    name: chest_color
+    fovy_deg: 42.0
+    resolution: [1280, 720]
+  depth:
+    name: chest_depth
+    fovy_deg: 58.0
+    resolution: [848, 480]
+  # Hình học D435 theo realsense2_description/urdf/_d435.urdf.xacro (khung camera_link:
+  # gốc = quang tâm depth = infra1, x trước, y trái, z lên).
+  realsense:
+    depth_y_from_housing_center: 0.0175   # d435_cam_depth_py
+    color_y_from_depth: 0.015             # d435_cam_depth_to_color_offset
+    glass_front_from_optical: 0.0043      # d435_zero_depth_to_glass + d435_glass_to_front
+    housing_size: [0.02505, 0.090, 0.025] # sâu x rộng x cao
+  mesh: third_party/openarm_mujoco/v0.3/meshes/d435.stl
+  collision: true           # hộp va chạm quanh vỏ (để phát hiện tay đụng camera)
+  mount_bracket: true       # tấm đỡ hình học đơn giản nối cột với lưng camera (chỉ hiển thị)
+
+render:
+  overview_size: [960, 720]
